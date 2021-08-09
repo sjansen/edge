@@ -1,6 +1,7 @@
 package inspector_test
 
 import (
+	"context"
 	"sort"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 func TestInspect(t *testing.T) {
 	require := require.New(t)
 
-	actual, err := inspector.Inspect("testdata/api")
+	actual, err := inspector.Inspect(context.TODO(), "testdata")
 	require.NoError(err)
 
 	sort.Slice(actual, func(i, j int) bool {
@@ -23,7 +24,7 @@ func TestInspect(t *testing.T) {
 
 	expected := []*inspector.Endpoint{
 		{
-			Package: "api",
+			Package: "example.com/test/api",
 			Handler: "HelloHandler",
 			Routes:  []string{"/hello"},
 			Get: &inspector.Method{
@@ -43,12 +44,12 @@ func TestInspect(t *testing.T) {
 				},
 			},
 		}, {
-			Package: "api",
+			Package: "example.com/test/api",
 			Handler: "RegistrationHandler",
 			Routes:  []string{"/users/register"},
 			Post: &inspector.Method{
 				Params: &inspector.Struct{
-					Package: "shared",
+					Package: "example.com/test/shared",
 					Name:    "UserProfile",
 				},
 			},

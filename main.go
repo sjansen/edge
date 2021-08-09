@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -8,7 +9,7 @@ import (
 )
 
 func main() {
-	endpoints, err := inspector.Inspect("internal/inspector/testdata/api")
+	endpoints, err := inspector.Inspect(context.Background(), "internal/inspector/testdata")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
@@ -25,7 +26,14 @@ func main() {
 			"PUT":     endpoint.Put,
 		} {
 			if method != nil {
-				fmt.Printf("  %s (%s) %s\n", verb, method.Params.Name, method.Result.Name)
+				var params, result string
+				if method.Params != nil {
+					params = method.Params.Name
+				}
+				if method.Result != nil {
+					result = method.Result.Name
+				}
+				fmt.Printf("  %s (%s) %s\n", verb, params, result)
 			}
 		}
 	}

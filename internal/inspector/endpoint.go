@@ -1,7 +1,7 @@
 package inspector
 
 import (
-	"go/ast"
+	"go/types"
 )
 
 type Endpoint struct {
@@ -27,62 +27,65 @@ type Struct struct {
 	Name    string
 }
 
-var verbs = map[string]struct{}{
-	"Delete":  {},
-	"Get":     {},
-	"Head":    {},
-	"Options": {},
-	"Patch":   {},
-	"Post":    {},
-	"Put":     {},
-}
-
-func (e *Endpoint) addMethod(name string, ft *ast.FuncType) error {
-	if _, ok := verbs[name]; !ok {
-		return nil
-	}
-
+func (e *Endpoint) addMethod(name string, sig *types.Signature) error {
 	method := &Method{}
-	switch n := ft.Params.NumFields(); n {
+
+	params := sig.Params()
+	switch n := params.Len(); n {
 	default:
 		return ErrInvalidSignature
 	case 0:
 	case 1:
-		if !isContext(ft.Params.List[0].Type) {
+		// TODO: also accept struct
+		if !isContext(params.At(0).Type()) {
 			return ErrInvalidSignature
 		}
 	case 2:
-		if !isContext(ft.Params.List[0].Type) {
+		if !isContext(params.At(0).Type()) {
 			return ErrInvalidSignature
 		}
-		if pkg, name, ok := matchStruct(ft.Params.List[1].Type); ok {
-			method.Params = &Struct{
-				Package: pkg,
-				Name:    name,
+		if pkg, name, ok := matchStruct(params.At(1).Type()); ok {
+			if pkg == e.Package {
+				method.Params = &Struct{
+					Name: name,
+				}
+			} else {
+				method.Params = &Struct{
+					Package: pkg,
+					Name:    name,
+				}
 			}
 		} else {
 			return ErrInvalidSignature
 		}
 	}
 
-	switch n := ft.Results.NumFields(); n {
+	results := sig.Results()
+	switch n := results.Len(); n {
 	default:
 		return ErrInvalidSignature
 	case 0:
 	case 1:
-		if !isError(ft.Results.List[0].Type) {
+		// TODO: also accept struct
+		if !isError(results.At(0).Type()) {
 			return ErrInvalidSignature
 		}
 	case 2:
-		if !isError(ft.Results.List[1].Type) {
-			return ErrInvalidSignature
-		}
-		if pkg, name, ok := matchStruct(ft.Results.List[0].Type); ok {
-			method.Result = &Struct{
-				Package: pkg,
-				Name:    name,
+		if pkg, name, ok := matchStruct(results.At(0).Type()); ok {
+			if pkg == e.Package {
+				method.Result = &Struct{
+					Name: name,
+				}
+			} else {
+				method.Result = &Struct{
+					Package: pkg,
+					Name:    name,
+				}
 			}
 		} else {
+			return ErrInvalidSignature
+		}
+		if !isError(results.At(1).Type()) {
 			return ErrInvalidSignature
 		}
 	}

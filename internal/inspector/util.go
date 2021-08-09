@@ -1,39 +1,37 @@
 package inspector
 
 import (
-	"go/ast"
+	"go/types"
 )
 
-func isContext(expr ast.Expr) bool {
-	if sel, ok := expr.(*ast.SelectorExpr); ok {
-		if sel.Sel.Name != "Context" {
-			return false
-		}
-		if ident, ok := sel.X.(*ast.Ident); ok {
-			return ident.Name == "context"
+func isContext(typ types.Type) bool {
+	if named, ok := typ.(*types.Named); ok {
+		obj := named.Obj()
+		if obj.Pkg().Path() == "context" {
+			return obj.Name() == "Context"
 		}
 	}
 	return false
 }
 
-func isError(expr ast.Expr) bool {
-	if ident, ok := expr.(*ast.Ident); ok {
-		return ident.Name == "error"
+func isError(typ types.Type) bool {
+	if named, ok := typ.(*types.Named); ok {
+		obj := named.Obj()
+		if obj.Pkg() == nil {
+			return obj.Name() == "error"
+		}
 	}
 	return false
 }
 
-func matchStruct(expr ast.Expr) (string, string, bool) {
-	if star, ok := expr.(*ast.StarExpr); ok {
-		if ident, ok := star.X.(*ast.Ident); ok {
-			if decl, ok := ident.Obj.Decl.(*ast.TypeSpec); ok {
-				if _, ok := decl.Type.(*ast.StructType); ok {
-					return "", ident.Name, true
-				}
+func matchStruct(typ types.Type) (string, string, bool) {
+	if ptr, ok := typ.(*types.Pointer); ok {
+		if named, ok := ptr.Elem().(*types.Named); ok {
+			if _, ok := named.Underlying().(*types.Struct); ok {
+				pkg := named.Obj().Pkg().Path()
+				name := named.Obj().Name()
+				return pkg, name, true
 			}
-		}
-		if sel, ok := star.X.(*ast.SelectorExpr); ok {
-			return sel.X.(*ast.Ident).Name, sel.Sel.Name, true
 		}
 	}
 	return "", "", false
